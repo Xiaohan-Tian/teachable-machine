@@ -74,6 +74,11 @@ jobs:
           console.log(`Copying files to ${folder}`);
           cp.execSync(`cp -R /tmp/source_repo/* ${folder}/`);
           cp.execSync(`rm -rf /tmp/source_repo`);
+
+          // Listing all files in the target folder
+          console.log(`Files in the target folder ${folder}:`);
+          let targetFiles = cp.execSync(`ls -la ${folder}`).toString();
+          console.log(targetFiles);
           
           // Adding and committing changes
           console.log(`Adding changes to git`);
