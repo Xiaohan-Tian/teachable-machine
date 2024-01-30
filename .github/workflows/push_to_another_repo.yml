@@ -84,6 +84,11 @@ jobs:
           console.log(`Adding changes to git`);
           cp.execSync(`git add -A ${folder}`);
 
+          // Configuring Git user
+          console.log(`Configuring Git user`);
+          cp.execSync('git config user.name "GitHub Actions"');
+          cp.execSync('git config user.email "actions@github.com"');
+
           // Check if there are changes and commit them
           console.log(`Checking for changes`);
           const status = cp.execSync('git status --porcelain').toString();
