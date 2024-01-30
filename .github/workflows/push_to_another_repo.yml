@@ -62,17 +62,30 @@ jobs:
           cp.execSync(`mkdir -p ${folder}`);
 
           // Copy files from source repo to the folder
-          console.log(`Copying files to ${folder}`);
+          console.log(`Cloning source repository`);
           cp.execSync(`git clone https://${token}:x-oauth-basic@github.com/${process.env.GITHUB_REPOSITORY} /tmp/source_repo`);
+
+          // Listing all files in the source repository
+          console.log(`Listing files in the source repository:`);
+          const fileList = cp.execSync('ls -R /tmp/source_repo').toString();
+          console.log(fileList);
+          
+          // Copying files to the target folder
+          console.log(`Copying files to ${folder}`);
           cp.execSync(`cp -R /tmp/source_repo/* ${folder}/`);
           cp.execSync(`rm -rf /tmp/source_repo`);
           
-          // Commit and push changes
-          console.log(`Committing and pushing changes`);
-          cp.execSync('git config user.name "GitHub Actions"');
-          cp.execSync('git config user.email "<email@example.com>"');
-          cp.execSync(`git add ${folder}`);
-          cp.execSync(`git commit -m "${message}"`);
-          cp.execSync(`git push origin ${branch}`);
+          // Check if there are changes and commit them
+          console.log(`Checking for changes`);
+          const status = cp.execSync('git status --porcelain').toString();
+          if (status !== '') {
+            console.log(`Committing changes`);
+            cp.execSync(`git add ${folder}`);
+            cp.execSync(`git commit -m "${message}"`);
+            console.log(`Pushing changes`);
+            cp.execSync(`git push origin ${branch}`);
+          } else {
+            console.log('No changes to commit');
+          }
 
-          console.log(`Successfully pushed to ${repository}`);
+          console.log(`Workflow completed`);
