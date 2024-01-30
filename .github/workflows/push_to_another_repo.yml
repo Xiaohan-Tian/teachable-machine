@@ -57,10 +57,15 @@ jobs:
             cp.execSync(`rm -rf ${folder}`);
           }
 
-          // Copy files into a folder in the target repository
-          console.log(`Copying files to ${folder}`);
+          // Creating the folder
+          console.log(`Creating folder: ${folder}`);
           cp.execSync(`mkdir -p ${folder}`);
-          cp.execSync(`rsync -av --exclude=${folder} ./ ${folder}/`);
+
+          // Copy files from source repo to the folder
+          console.log(`Copying files to ${folder}`);
+          cp.execSync(`git clone https://github.com/${process.env.GITHUB_REPOSITORY} /tmp/source_repo`);
+          cp.execSync(`cp -R /tmp/source_repo/* ${folder}/`);
+          cp.execSync(`rm -rf /tmp/source_repo`);
           
           // Commit and push changes
           console.log(`Committing and pushing changes`);
