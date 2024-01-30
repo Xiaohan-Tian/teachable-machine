@@ -1,0 +1,74 @@
+name: Push to Another Repository
+
+on:
+  push:
+    branches:
+      - main  # or your default branch
+
+jobs:
+  push:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout Repository
+      uses: actions/checkout@v2
+
+    - name: Push to Another Repository
+      uses: actions/github-script@0.9.0
+      env:
+        TARGET_REPOSITORY: 'Xiaohan-Tian/release'
+        TARGET_FOLDER: 'release-teachable-machine'
+        COMMIT_MESSAGE: 'Update from source repository'
+        BRANCH: 'main'  # or any branch on the target repo
+        GITHUB_TOKEN: ${{ secrets.TEACHABLE_MACHINE_RELEASE }}  # You need to set this in your repo secrets
+      with:
+        script: |
+          const fs = require('fs');
+          const github = require('@actions/github');
+          const path = require('path');
+          const process = require('process');
+          const cp = require('child_process');
+          
+          const token = process.env.GITHUB_TOKEN;
+          const folder = process.env.TARGET_FOLDER;
+          const message = process.env.COMMIT_MESSAGE;
+          const branch = process.env.BRANCH;
+          const repository = process.env.TARGET_REPOSITORY;
+
+          console.log(`Starting script to push contents to ${repository}`);
+
+          // Clone the target repository
+          console.log(`Cloning the target repository: ${repository}`);
+          cp.execSync(`git clone https://x-access-token:${token}@github.com/${repository} /tmp/repo`);
+          process.chdir('/tmp/repo');
+          
+          // Create or checkout branch
+          console.log(`Checking out branch: ${branch}`);
+          try {
+            cp.execSync(`git checkout ${branch}`);
+          } catch {
+            console.log(`Branch not found. Creating a new branch: ${branch}`);
+            cp.execSync(`git checkout -b ${branch}`);
+          }
+
+          // Check if the folder exists and delete it
+          console.log(`Checking if the folder ${folder} exists`);
+          if (fs.existsSync(folder)) {
+            console.log(`Folder exists. Deleting ${folder}`);
+            cp.execSync(`rm -rf ${folder}`);
+          }
+
+          // Copy files into a folder in the target repository
+          console.log(`Copying files to ${folder}`);
+          cp.execSync(`mkdir -p ${folder}`);
+          cp.execSync(`cp -R * ${folder}/`);
+          
+          // Commit and push changes
+          console.log(`Committing and pushing changes`);
+          cp.execSync('git config user.name "GitHub Actions"');
+          cp.execSync('git config user.email "<email@example.com>"');
+          cp.execSync(`git add ${folder}`);
+          cp.execSync(`git commit -m "${message}"`);
+          cp.execSync(`git push origin ${branch}`);
+
+          console.log(`Successfully pushed to ${repository}`);
