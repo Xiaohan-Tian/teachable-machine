@@ -63,7 +63,7 @@ jobs:
 
           // Copy files from source repo to the folder
           console.log(`Copying files to ${folder}`);
-          cp.execSync(`git clone https://github.com/${process.env.GITHUB_REPOSITORY} /tmp/source_repo`);
+          cp.execSync(`git clone https://${token}:x-oauth-basic@github.com/${process.env.GITHUB_REPOSITORY} /tmp/source_repo`);
           cp.execSync(`cp -R /tmp/source_repo/* ${folder}/`);
           cp.execSync(`rm -rf /tmp/source_repo`);
           
