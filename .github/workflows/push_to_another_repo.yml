@@ -82,7 +82,7 @@ jobs:
           
           // Adding and committing changes
           console.log(`Adding changes to git`);
-          cp.execSync(`git add -A ${folder}`);
+          cp.execSync('git add .');
 
           // Check if there are changes and commit them
           console.log(`Checking for changes`);
