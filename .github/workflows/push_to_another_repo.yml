@@ -60,7 +60,7 @@ jobs:
           // Copy files into a folder in the target repository
           console.log(`Copying files to ${folder}`);
           cp.execSync(`mkdir -p ${folder}`);
-          cp.execSync(`cp -R * ${folder}/`);
+          cp.execSync(`rsync -av --exclude=${folder} ./ ${folder}/`);
           
           // Commit and push changes
           console.log(`Committing and pushing changes`);
