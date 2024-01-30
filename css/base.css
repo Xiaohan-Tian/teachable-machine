@@ -1,0 +1,129 @@
+body {
+    margin: 0px;
+    background: #fafafa;
+    font-family: Roboto, arial, sans-serif;
+    padding: 30px 0px 30px 0px;
+    font-size: 14px;
+}
+
+.clear {
+    clear: both;
+}
+
+.title1 {
+    font-size: 26px;
+    font-weight: bold;
+    line-height: 2em;
+    color: #000000;
+}
+
+.title2 {
+    font-size: 22px;
+    font-weight: normal;
+    line-height: 2em;
+}
+
+.page_root {
+    max-width: 964px;
+    margin: auto;
+    padding: 10px 0px 10px 0px;
+    background: #ffffff;
+}
+
+.page_root .hr {
+    margin: 15px 20px 15px 20px;
+    border-bottom: 1px solid #efefef;
+}
+
+.row {
+    position: relative;
+    margin: 0px 10px 0px 10px;
+}
+
+.row label.file_upload {
+    cursor: pointer;
+    font-family: Roboto, arial, sans-serif;
+    font-size: 14px;
+    color: #377ff1;
+}
+
+.row input[type=file] {
+    display: none;
+}
+
+.row button {
+    height: 45px;
+    width: 165px;
+    background: #377ff1;
+    border: none;
+    border-radius: .125rem;
+    cursor: pointer;
+    box-shadow: 0 2px 5px 0 rgba(0, 0, 0, 0.18), 0 2px 5px 0 rgba(0, 0, 0, 0.15);
+    font-family: Roboto, arial, sans-serif;
+    font-size: 14px;
+    color: #ffffff;
+    margin-right: 15px;
+}
+
+.row button:hover {
+    box-shadow: 0 5px 11px 0 rgba(0, 0, 0, 0.18), 0 4px 15px 0 rgba(0, 0, 0, 0.15);
+}
+
+.row button:disabled,
+.row button[disabled],
+.row button[disabled]:hover {
+    background: #efefef;
+    color: #999999;
+    box-shadow: 0 2px 5px 0 rgba(0, 0, 0, 0.18), 0 2px 5px 0 rgba(0, 0, 0, 0.15);
+    cursor: default;
+}
+
+.row input[type=checkbox] {
+    vertical-align: bottom;
+}
+
+.row label {
+    padding-bottom: 3px;
+    vertical-align: bottom;
+}
+
+.title_row {
+    padding: 0px 0px 0px 0px;
+    margin-top: -10px;
+    /*font-weight: bold;*/
+    font-size: 22px;
+    line-height: 120%;
+}
+
+.label_row {
+    padding: 10px 0px 0px 0px;
+    font-weight: bold;
+}
+
+.text_row {
+    padding: 10px 0px 0px 0px;
+}
+
+.control_row {
+    padding: 10px 0px 0px 0px;
+}
+
+.rows_container {
+}
+
+.footer {
+    padding-top: 15px;
+    color: #999999;
+    text-align: center;
+    font-size: 10px;
+    font-style: italic;
+    background: #fafafa;
+}
+
+#container_for_chair_control {
+    display: none;
+}
+
+#text_status {
+    line-height: 150%;
+}

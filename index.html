@@ -1,0 +1,472 @@
+<html>
+
+<head>
+    <meta charset="UTF-8">
+    <title>Teachable Machine (Image)</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/p5.js/1.0.0/p5.min.js" type="text/javascript"></script>
+    <script src="https://unpkg.com/ml5@0.6.0/dist/ml5.min.js" type="text/javascript"></script>
+    <script src="lib/util.js" type="text/javascript"></script>
+	<script src="https://kit.fontawesome.com/9666e26116.js" crossorigin="anonymous"></script>
+    <link rel="stylesheet" href="css/dummy.css">
+    <link rel="stylesheet" href="css/base.css">
+    <link rel="stylesheet" href="css/style.css">
+</head>
+
+<body>
+
+<div class="page_root">
+    <div class="hr title1">Teachable Machine (Image Classification)</div>
+    <div id="region_classes">
+        <div class="col_cam">
+            <div id="cam_container" class="cam_container">
+            </div>
+            <div class="row hint"><span id="lbl_hint"></span></div>
+            <div class="row">
+                <div class="default_progress progress_bar_border">
+                    <div class="progress_bar_content"></div>
+                    <span class="progress_bar_text"></span>
+                </div>
+            </div>
+        </div>
+        <div class="col_draw">
+            <div class="container_class_ctrl">
+                <div class="row">
+                    <button id="btn_add_class">+</button>
+                    <button id="btn_train">Train Model</button>
+                    <button id="btn_load">Load Model</button>
+                    <button id="btn_save">Save Model</button>
+                </div>
+            </div>
+        </div>
+        <div class="clear"></div>
+    </div>
+</div>
+
+<div class="page_root footer">
+    Developed by Xiaohan Tian
+</div>
+
+<div id="template_container_image_class" class="template">
+    <div class="container_image_class">
+        <div class="row title2">
+            <span class="lbl_class_name">Class1</span>
+            <span class="lbl_class_name_edit before_training"><input type="text"/>&nbsp;</span>
+            <span class="btn_edit icon before_training"><i class="fas fa-pen"></i></span>
+            <span class="btn_ok icon before_training"><i class="fas fa-check"></i></span>
+            <span class="btn_delete icon pull-right before_training"><i class="fas fa-times"></i></span>
+            <span class="btn_rec icon pull-right before_training"><i class="fas fa-video"></i></span>
+            <div class="clear"></div>
+        </div>
+        <div class="container_captured_images">
+            <div class="clear"></div>
+        </div>
+        <div class="clear"></div>
+    </div>
+</div>
+
+<div id="template_container_image_captured" class="template">
+    <div class="container_captured_image">
+        <img class="display" src="simple-colors.png"/>
+        <img class="raw" src="simple-colors.png"/>
+        <span class="btn_delete icon before_training"><i class="fas fa-trash"></i></span>
+    </div>
+</div>
+
+<div id="template_container_progress_bar" class="template">
+    <div class="row">
+        <div class="progress_bar_border">
+            <div class="progress_bar_content"></div>
+            <span class="progress_bar_text"></span>
+        </div>
+    </div>
+</div>
+
+<script>
+	// environment
+	const MAX_CLASS_COUNT = 5;
+	const UI_UPDATE_DELAY = 50;
+	const TRAINING_EPOCH = 30;
+	const TRAINING_CB_PER_EPOCH = 3;
+	let latestClassId = 1;
+
+	// ML
+	let mobileNetFeatures = null;
+	let classifier = null;
+
+	// UI
+	const webCamSize = [1280, 960];
+	const containerWebCam = document.querySelector(`.cam_container`);
+	const containerWebCamSize = containerWebCam.clientWidth;
+	const containerColDraw = document.querySelector(`.col_draw`);
+	const btnAddClass = document.querySelector(`#btn_add_class`);
+	const btnTrain = document.querySelector(`#btn_train`);
+	const lblHint = document.querySelector(`#lbl_hint`);
+	let canvasWebCam = null;
+	let progressDefault = null;
+
+	console.log(containerWebCamSize);
+
+	let video = null;
+	let update = null;
+
+	const classIdLabelMap = {};
+	const classProgressBarMap = {};
+
+	const progressBar = (el) => {
+		const o = el;
+		const label = el.querySelector(`span.progress_bar_text`);
+		const progress = el.querySelector(`div.progress_bar_content`);
+
+		return {
+			setText: (t) => {
+				label.textContent = t;
+			},
+
+			setValue: (v) => {
+				progress.style.width = `${Math.round(v * 100)}%`;
+			},
+
+			setActive: (v) => {
+				if (v) {
+					progress.classList.add(`active`);
+				} else {
+					progress.classList.remove(`active`);
+				}
+			},
+
+			setProgress: (v) => {
+				const t = `${Math.round(v * 100)}%`;
+				label.textContent = t;
+				progress.style.width = t;
+			},
+
+			hide: () => {
+				o.style.display = 'none';
+			},
+
+			show: () => {
+				o.style.display = 'block';
+			}
+		};
+	};
+
+	// methods
+	const addClass = () => {
+		console.log(`[addClass] start`);
+
+		// validate
+		const classNodes = document.querySelectorAll(`.col_draw .container_image_class`);
+		if (classNodes.length >= MAX_CLASS_COUNT) {
+			alert(`You can't have more then ${MAX_CLASS_COUNT} classes.`);
+			return;
+		}
+
+		// prepare class and handle data change
+		const newClassId = latestClassId++;
+		const newClassName = `Class ${newClassId}`;
+
+		// prepare dom
+		const domClass = document.querySelector(`#template_container_image_class .container_image_class`).cloneNode(true);
+		domClass.setAttribute(`data-class-id`, newClassId);
+		domClass.querySelector(`.lbl_class_name`).textContent = newClassName;
+
+		// bind events
+		domClass.querySelector(`.btn_delete`).onclick = (o) => { removeClass(o); };
+		domClass.querySelector(`.btn_rec`).onclick = (o) => { startRec(o); };
+
+		domClass.querySelector(`span.btn_edit`).onclick = (o) => {
+			const source = o.target || o.srcElement;
+			const domClass = source.closest(`.container_image_class`);
+
+			// update UI
+			domClass.querySelector(`.lbl_class_name`).style.display = 'none';
+			domClass.querySelector(`.btn_edit`).style.display = 'none';
+
+			domClass.querySelector(`.lbl_class_name_edit`).style.display = 'inline';
+			domClass.querySelector(`.btn_ok`).style.display = 'inline';
+
+			domClass.querySelector(`.lbl_class_name_edit input`).value = domClass.querySelector(`.lbl_class_name`).textContent;
+		};
+
+		domClass.querySelector(`span.btn_ok`).onclick = (o) => {
+			const source = o.target || o.srcElement;
+			const domClass = source.closest(`.container_image_class`);
+
+			// update UI
+			domClass.querySelector(`.lbl_class_name`).style.display = 'inline';
+			domClass.querySelector(`.btn_edit`).style.display = 'inline';
+
+			domClass.querySelector(`.lbl_class_name_edit`).style.display = 'none';
+			domClass.querySelector(`.btn_ok`).style.display = 'none';
+
+			domClass.querySelector(`.lbl_class_name`).textContent = domClass.querySelector(`.lbl_class_name_edit input`).value;
+		};
+
+		// insert nodes to DOM
+		containerColDraw.insertBefore(domClass, containerColDraw.querySelector(`.container_class_ctrl`));
+	};
+
+	const removeClass = (o) => {
+		console.log(`[removeClass] start`);
+
+		// validate
+		const classNodes = document.querySelectorAll(`.col_draw .container_image_class`);
+		if (classNodes.length <= 2) {
+			alert(`You have to have at least 2 classes.`);
+			return;
+		}
+
+		// prepare
+		const source = o.target || o.srcElement;
+		const domClass = source.closest(`.container_image_class`);
+
+		// update UI
+		domClass.remove();
+	};
+
+	const startRec = (o) => {
+		console.log(`[startRec] start`);
+
+		const source = o.target || o.srcElement;
+		const domClass = source.closest(`.container_image_class`);
+		const classId = domClass.getAttribute(`data-class-id`);
+
+		console.log(`[startRec] classId = ${classId}`);
+
+		// update UI
+		addCapturedImage(classId);
+	};
+
+	const addCapturedImage = (classId) => {
+		console.log(`[addCapturedImage] start`);
+
+		// prepare dom
+		const domCapturedImage = document.querySelector(`#template_container_image_captured .container_captured_image`).cloneNode(true);
+		const parentNode = document.querySelector(`#region_classes .container_image_class[data-class-id='${classId}'] .container_captured_images`);
+		const capturedImgData = canvasWebCam.canvas.toDataURL();
+		const domImgDisplay = domCapturedImage.querySelector(`img.display`);
+		const domImgRaw = domCapturedImage.querySelector(`img.raw`);
+		const btnDelete = domCapturedImage.querySelector(`.btn_delete`);
+
+		// bind events
+		domCapturedImage.onmouseenter = (o) => {
+			const source = o.target || o.srcElement;
+			const domCapturedImage = source.closest(`.container_captured_image`);
+			const domTrashIcon = domCapturedImage.querySelector(`span.icon`);
+
+			// update UI
+			if (domTrashIcon) {
+				domTrashIcon.style.display = 'inline';
+			}
+		};
+
+		domCapturedImage.onmouseout = (o) => {
+			const source = o.target || o.srcElement;
+			const toElement = event.toElement || event.relatedTarget;
+			const domCapturedImage = source.closest(`.container_captured_image`);
+			const cloestCapturedImageFromToElement = toElement.closest(`.container_captured_image`);
+			if ((cloestCapturedImageFromToElement && cloestCapturedImageFromToElement == domCapturedImage) || toElement.parentNode == source || toElement == source) {
+				return;
+			}
+
+			const domTrashIcon = domCapturedImage.querySelector(`span.icon`);
+
+			// update UI
+			if (domTrashIcon) {
+				domTrashIcon.style.display = 'none';
+			}
+		};
+
+		btnDelete.onclick = (o) => {
+			const source = o.target || o.srcElement;
+			const domCapturedImage = source.closest(`.container_captured_image`);
+
+			// update UI
+			domCapturedImage.remove();
+		};
+
+		// insert nodes to DOM
+		domImgDisplay.src = capturedImgData;
+		domImgRaw.src = capturedImgData;
+		parentNode.insertBefore(domCapturedImage, parentNode.querySelector(`div.clear`));
+		parentNode.scrollTop = parentNode.scrollHeight;
+	};
+
+	const train = async () => {
+		console.log(`[train] start`);
+
+		// gather class information
+		const classNodes = document.querySelectorAll(`.col_draw .container_image_class`);
+		const imgMap = {};
+		let totalImageCount = 0;
+		let proceededImageCount = 0;
+
+		for (let i = 0; i < classNodes.length; i++) {
+			// prepare images
+			const currentClassNode = classNodes[i];
+			const currentClassId = currentClassNode.getAttribute(`data-class-id`);
+			const imageNodes = currentClassNode.querySelectorAll(`.container_captured_images img.raw`);
+
+			// validate
+			if (imageNodes.length == 0) {
+				alert(`Class "${currentClassNode.querySelector(`span.lbl_class_name`).textContent}" doesn't have any sample image.`);
+				return;
+			}
+
+			// add images to the map
+			classIdLabelMap[`::${currentClassId}`] = currentClassNode.querySelector(`span.lbl_class_name`).textContent;
+			totalImageCount += imageNodes.length;
+			imgMap[currentClassId] = imageNodes;
+		}
+
+		// update UI
+		const beforeTrainingButtons = document.querySelectorAll(`.col_draw span.before_training`);
+		for (let i = 0; i < beforeTrainingButtons.length; i++) {
+			beforeTrainingButtons[i].remove();
+		}
+
+		btnAddClass.style.display = `none`;
+		btnTrain.style.display = `none`;
+
+		// ML
+		// add training images
+		console.log(`[train] preparing`);
+		lblHint.textContent = `Preparing ...`;
+		progressDefault.show();
+		progressDefault.setProgress(0);
+		await waitFor(UI_UPDATE_DELAY);
+
+		const options = {numLabels: classNodes.length};
+		classifier = mobileNetFeatures.classification(video, options);
+
+		await classifier.ready;
+
+		for (let currentClassId in imgMap) {
+			const imageNodes = imgMap[currentClassId];
+
+			for (let i = 0; i < imageNodes.length; i++) {
+				console.log(`[train] processing ${currentClassId}/${i}`);
+
+				const currentImgNode = imageNodes[i];
+				await classifier.addImage(currentImgNode, `::${currentClassId}`);
+
+				proceededImageCount++;
+				progressDefault.setProgress(proceededImageCount / totalImageCount);
+				await waitFor(UI_UPDATE_DELAY);
+			}
+		}
+
+		// train
+		let finishedTrainingCount = 0;
+
+		console.log(`[train] training`);
+		lblHint.textContent = `Training ...`;
+		progressDefault.show();
+		progressDefault.setProgress(0);
+		await waitFor(UI_UPDATE_DELAY);
+
+		classifier.train(function (lossValue) {
+			if (lossValue) {
+				totalLoss = lossValue;
+				console.log(`[train] training; loss = ${totalLoss}; finishedTrainingCount = ${finishedTrainingCount++}`);
+				progressDefault.setProgress(finishedTrainingCount / (TRAINING_CB_PER_EPOCH * TRAINING_EPOCH));
+			} else {
+				console.log(`[train] done; finishedTrainingCount = ${finishedTrainingCount++}`);
+
+				// update UI
+				progressDefault.setProgress(1);
+				progressDefault.hide();
+
+				prepareResult();
+
+				// begin predicting
+				classifier.classify(updateResult);
+			}
+		});
+	};
+
+	const prepareResult = () => {
+		for (let currentClassId in classIdLabelMap) {
+			const domProgressBar = document.querySelector(`#template_container_progress_bar div.row`).cloneNode(true);
+			const parentNode = document.querySelector(`div.col_cam`);
+
+			const pb = progressBar(domProgressBar);
+			pb.setText(classIdLabelMap[currentClassId]);
+			classProgressBarMap[currentClassId] = pb;
+			parentNode.append(domProgressBar);
+		}
+	};
+
+	const updateResult = (err, results) => {
+		// Display any error
+		if (err) {
+			console.error(err);
+		}
+		if (results && results[0]) {
+			for (let i = 0; i < results.length; i++) {
+                if (i == 0) {
+					lblHint.textContent = `Class: ${classIdLabelMap[results[0].label]} (Confidence = ${results[0].confidence.toFixed(2) * 100}%)`;
+					classProgressBarMap[results[i].label].setActive(true);
+                } else {
+					classProgressBarMap[results[i].label].setActive(false);
+                }
+
+				classProgressBarMap[results[i].label].setValue(results[i].confidence);
+            }
+
+			classifier.classify(updateResult);
+		}
+	};
+
+	const drawWebCam = () => {
+		rect(0, 0, width, height);
+		fill(196);
+		noStroke();
+		image(video.get((webCamSize[0] - webCamSize[1]) / 2, 0, webCamSize[1], webCamSize[1]), 0, 0, width, height);
+	};
+
+	const init = async () => {
+		lblHint.textContent = `Preparing environment and loading models...`;
+
+		// page
+		canvasWebCam = createCanvas(containerWebCamSize, containerWebCamSize);
+		canvasWebCam.parent(`cam_container`);
+
+		video = createCapture(VIDEO);
+		video.size(webCamSize[0], webCamSize[1]);
+		video.hide();
+
+		btnAddClass.onclick = () => { addClass(); };
+		btnTrain.onclick = () => { train(); };
+
+		addClass();
+		addClass();
+
+		// ML
+		const options = {
+			epochs: TRAINING_EPOCH
+		};
+		mobileNetFeatures = ml5.featureExtractor('MobileNet', options);
+
+		await mobileNetFeatures.ready;
+
+		// UI
+		progressDefault = progressBar(document.querySelector(`.col_cam .default_progress`));
+
+		update = drawWebCam;
+		lblHint.textContent = `Ready`;
+	};
+
+	// P5.js methods
+	function setup () {
+		(async () => { await init(); })();
+	}
+
+	function draw () {
+		if (update) update();
+	}
+</script>
+
+</body>
+
+</html>
