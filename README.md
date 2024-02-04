@@ -1,4 +1,7 @@
 # Image Teachable Machine
+
+[**Online Demo**](https://github.com/Xiaohan-Tian/Xiaohan-Tian.github.io/blob/main/release-teachable-machine/index.html)
+
 Inspired by the Google Teachable Machine - Image Project, this is an alternative open-source version with the same features.
 
 ## User Guide
